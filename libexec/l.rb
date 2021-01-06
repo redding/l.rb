@@ -500,7 +500,7 @@ module LdotRB
   end
 
   def self.help_msg
-    "Usage: #{config.bin_name} [options] [FILES]\n\n"\
+    "Usage: l [options] [FILES]\n\n"\
     "Options:"\
     "#{clirb}"
   end
