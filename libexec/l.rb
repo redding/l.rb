@@ -101,7 +101,7 @@ module LdotRB
       config = YAML.load(File.read(CONFIG_FILE_PATH))
       @source_file_paths  = config["source_file_paths"] || @source_file_paths
       @ignored_file_paths = config["ignored_file_paths"] || @ignored_file_paths
-      @linter_hashes      = config["linter_hashes"] || @linter_hashes
+      @linter_hashes      = config["linters"] || @linter_hashes
     end
 
     def debug_msg(msg)
@@ -153,16 +153,16 @@ module LdotRB
   class Linter
     ARGUMENT_SEPARATOR = " "
 
-    attr_reader :name, :executable, :extensions, :cli_option_name, :cli_abbrev
+    attr_reader :name, :cmd, :extensions, :cli_option_name, :cli_abbrev
 
     def initialize(
           name:,
-          executable:,
+          cmd:,
           extensions:,
           cli_option_name: nil,
           cli_abbrev: nil)
       @name = name
-      @executable = executable
+      @cmd = cmd
       @extensions = extensions
       @cli_option_name = cli_option_name || name.downcase.gsub(/\W+/, "_")
       @cli_abbrev = cli_abbrev || name[0].downcase
@@ -189,7 +189,7 @@ module LdotRB
     end
 
     def cmd_str(specified_source_files)
-      return "#{executable} ." if specified_source_files.nil?
+      return "#{cmd} ." if specified_source_files.nil?
 
       applicable_source_files =
         specified_source_files.select { |source_file|
@@ -197,14 +197,14 @@ module LdotRB
         }
       return if applicable_source_files.none?
 
-      "#{executable} #{applicable_source_files.join(ARGUMENT_SEPARATOR)}"
+      "#{cmd} #{applicable_source_files.join(ARGUMENT_SEPARATOR)}"
     end
 
     def ==(other_linter)
       return super unless other_linter.kind_of?(self.class)
 
       name == other_linter.name &&
-      executable == other_linter.executable &&
+      cmd == other_linter.cmd &&
       extensions == other_linter.extensions &&
       cli_option_name == other_linter.cli_option_name &&
       cli_abbrev == other_linter.cli_abbrev
@@ -470,9 +470,10 @@ module LdotRB
   end
 
   def self.apply(argv)
+    config.load
+
     clirb.parse!(argv)
     config.apply(clirb.opts)
-    config.load
   end
 
   def self.bench(*args, &block)

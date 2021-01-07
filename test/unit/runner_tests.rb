@@ -30,12 +30,12 @@ class LdotRB::Runner
 
 
       @name1 = Factory.string
-      @executable1 = Factory.string
+      @cmd1 = Factory.string
       @extension1 = ".rb"
       @linters = [
         LdotRB::Linter.new(
           name: @name1,
-          executable: @executable1,
+          cmd: @cmd1,
           extensions: [@extension1]
         )
       ]
