@@ -3,7 +3,7 @@
 set -e
 
 L_HOME_DIR="$HOME/.l.rb"
-L_RELEASE="0.0.1"
+L_RELEASE="0.1.0"
 
 # make sure the bin path is in place
 
