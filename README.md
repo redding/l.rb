@@ -215,10 +215,10 @@ Optional. An String letter used as the abbreviated CLI flag for the linter. Defa
 
 ## Uninstall
 
-Open a terminal and run this command ([view source](http://git.io/l.rb--uninstall)):
+Open a terminal and run this command ([view source](http://git.io/l.rb---uninstall)):
 
 ```
-$ curl -L http://git.io/l.rb--uninstall | sh
+$ curl -L http://git.io/l.rb---uninstall | sh
 ```
 
 ## Contributing
