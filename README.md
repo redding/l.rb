@@ -13,7 +13,39 @@ $ curl -L https://git.io/l.rb--install | sh
 
 ## Usage
 
-(this assumes you've configured linters commands for Rubocop, ESLint, and SCSSLint)
+Given a `./.l.yml` in your project's root, e.g.:
+
+```yaml
+source_file_paths:
+  - app
+  - config
+  - db
+  - lib
+  - script
+  - test
+
+ignored_file_paths:
+  - test/fixtures
+
+linters:
+  - name: "Rubocop"
+    cmd: "rubocop"
+    extensions:
+      - ".rb"
+    cli_abbrev: "u"
+
+  - name: "ES Lint"
+    cmd: "./node_modules/.bin/eslint"
+    extensions:
+      - ".js"
+
+  - name: "SCSS Lint"
+    cmd: "scss-lint"
+    extensions:
+      - ".scss"
+```
+
+Then:
 
 ```
 $ cd my/project
@@ -145,38 +177,6 @@ app/file3.scss
 This option, similar to `--dry-run`, does not execute any linter command. It lists out each source file it would execute to `$stdout`.
 
 ## Configuration
-
-Add a `./.l.yml` in your project's root:
-
-```yaml
-source_file_paths:
-  - app
-  - config
-  - db
-  - lib
-  - script
-  - test
-
-ignored_file_paths:
-  - test/fixtures
-
-linters:
-  - name: "Rubocop",
-    cmd: "rubocop"
-    extensions:
-      - ".rb"
-    cli_abbrev: "u"
-
-  - name: "ES Lint",
-    cmd: "./node_modules/.bin/eslint",
-    extensions:
-      - ".js"
-
-  - name: "SCSS Lint",
-    cmd: "scss-lint",
-    extensions:
-      - ".scss"
-```
 
 #### `source_file_paths:`
 
