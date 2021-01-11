@@ -363,8 +363,8 @@ module LdotRB
   module GitChangedFiles
     def self.cmd(config, file_paths)
       [
-        "git diff --no-ext-diff --name-only #{config.changed_ref}", # changed files
-        "git ls-files --others --exclude-standard"                  # added files
+        "git diff --no-ext-diff --relative --name-only #{config.changed_ref}", # changed files
+        "git ls-files --others --exclude-standard"                             # added files
       ]
         .map{ |c| "#{c} -- #{file_paths.join(" ")}" }
         .join(" && ")
