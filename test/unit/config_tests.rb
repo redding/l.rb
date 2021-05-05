@@ -25,7 +25,8 @@ class LdotRB::Config
 
     should have_readers :stdout, :version
     should have_readers :source_file_paths, :ignored_file_paths, :linter_hashes
-    should have_imeths  :changed_only, :changed_ref, :dry_run, :list, :debug
+    should have_imeths  :changed_only, :changed_ref
+    should have_imeths :dry_run, :list, :autocorrect, :debug
     should have_imeths  :apply
     should have_imeths :debug_msg, :debug_puts, :puts, :print
     should have_imeths :bench, :bench_start_msg, :bench_finish_msg
@@ -48,6 +49,7 @@ class LdotRB::Config
       assert_that(subject.changed_ref).is_empty
       assert_that(subject.dry_run).is_false
       assert_that(subject.list).is_false
+      assert_that(subject.autocorrect).is_false
       assert_that(subject.debug).is_false
     end
 
@@ -57,6 +59,7 @@ class LdotRB::Config
         :changed_ref  => Factory.string,
         :dry_run      => true,
         :list         => true,
+        :autocorrect  => true,
         :debug        => true
       }
       subject.apply(settings)
@@ -65,6 +68,7 @@ class LdotRB::Config
       assert_that(subject.changed_ref).equals(settings[:changed_ref])
       assert_that(subject.dry_run).equals(settings[:dry_run])
       assert_that(subject.list).equals(settings[:list])
+      assert_that(subject.autocorrect).equals(settings[:autocorrect])
       assert_that(subject.debug).equals(settings[:debug])
     end
 

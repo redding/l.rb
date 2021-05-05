@@ -42,9 +42,8 @@ module LdotRB
     attr_reader :stdout, :version
     attr_reader :source_file_paths, :ignored_file_paths, :linter_hashes
 
-    settings :changed_only, :changed_ref, :dry_run, :list, :debug
-
-    # Dir.glob(Dir.pwd + "/*")
+    settings :changed_only, :changed_ref
+    settings :dry_run, :list, :autocorrect, :debug
 
     def initialize(stdout = nil)
       @stdout = stdout || $stdout
@@ -59,6 +58,7 @@ module LdotRB
       @changed_ref  = ""
       @dry_run      = false
       @list         = false
+      @autocorrect  = false
       @debug        = false
     end
 
@@ -153,16 +153,19 @@ module LdotRB
   class Linter
     ARGUMENT_SEPARATOR = " "
 
-    attr_reader :name, :cmd, :extensions, :cli_option_name, :cli_abbrev
+    attr_reader :name, :cmd, :autocorrect_cmd
+    attr_reader :extensions, :cli_option_name, :cli_abbrev
 
     def initialize(
           name:,
           cmd:,
           extensions:,
+          autocorrect_cmd: nil,
           cli_option_name: nil,
           cli_abbrev: nil)
       @name = name
       @cmd = cmd
+      @autocorrect_cmd = autocorrect_cmd
       @extensions = extensions
       @cli_option_name = cli_option_name || name.downcase.gsub(/\W+/, "_")
       @cli_abbrev = cli_abbrev || name[0].downcase
@@ -200,6 +203,19 @@ module LdotRB
       "#{cmd} #{applicable_source_files.join(ARGUMENT_SEPARATOR)}"
     end
 
+    def autocorrect_cmd_str(specified_source_files)
+      return if autocorrect_cmd.nil?
+      return "#{autocorrect_cmd} ." if specified_source_files.nil?
+
+      applicable_source_files =
+        specified_source_files.select { |source_file|
+          @extensions.include?(File.extname(source_file))
+        }
+      return if applicable_source_files.none?
+
+      "#{autocorrect_cmd} #{applicable_source_files.join(ARGUMENT_SEPARATOR)}"
+    end
+
     def ==(other_linter)
       return super unless other_linter.kind_of?(self.class)
 
@@ -235,6 +251,10 @@ module LdotRB
 
     def list?
       !!config.list
+    end
+
+    def autocorrect?
+      !!config.autocorrect
     end
 
     def debug?
@@ -279,6 +299,15 @@ module LdotRB
         }
     end
 
+    def autocorrect_cmds
+      @autocorrect_cmds ||=
+        linters.reduce({}) { |acc, linter|
+          acc[linter.cli_option_name] =
+            linter.autocorrect_cmd_str(specified_source_files)
+          acc
+        }
+    end
+
     def run
       output_source_files = specified_source_files.to_a
       if debug?
@@ -297,12 +326,13 @@ module LdotRB
           else
             enabled_linters
           end
+        cmd_str_method = autocorrect? ? :autocorrect_cmd_str : :cmd_str
 
         linters_to_run.each_with_index do |linter, index|
           puts "\n\n" if index > 0
           puts "Running #{linter.name}"
 
-          cmd = linter.cmd_str(specified_source_files)
+          cmd = linter.public_send(cmd_str_method, specified_source_files)
           next unless cmd
 
           debug_puts "  #{cmd}" if debug?
@@ -453,6 +483,9 @@ module LdotRB
       }
       option "changed_ref", "reference for changes, use with `-c` opt", {
         abbrev: "r", value: ""
+      }
+      option "autocorrect", "autocorrect any correctable violations", {
+        abbrev: "a"
       }
       option "dry_run", "output each linter command to $stdout without executing"
       option "list", "list source files on $stdout", {
