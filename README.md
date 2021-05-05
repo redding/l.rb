@@ -58,6 +58,7 @@ Options:
     -s, --[no-]scss-lint             specifically run or don't run SCSS Lint
     -c, --[no-]changed-only          only run source files with changes
     -r, --changed-ref VALUE          reference for changes, use with `-c` opt
+    -a, --[no-]autocorrect           autocorrect any correctable violations
         --[no-]dry-run               output each linter command to $stdout without executing
     -l, --[no-]list                  list source files on $stdout
     -d, --[no-]debug                 run in debug mode
