@@ -2,7 +2,6 @@
 
 A lint runner. Run locally configured lint commands via a generic CLI with standard options/features.
 
-
 ## Install
 
 Open a terminal and run this command ([view source](https://git.io/l.rb--install)):
@@ -30,6 +29,7 @@ ignored_file_paths:
 linters:
   - name: "Rubocop"
     cmd: "rubocop"
+    autocorrect_cmd: "rubocop -a"
     extensions:
       - ".rb"
     cli_abbrev: "u"
@@ -69,7 +69,7 @@ $ l
 #### Debug Mode
 
 ```
-$ runlints -d
+$ l -d
 [DEBUG] CLI init and parse...          (6.686 ms)
 [DEBUG] 0 specified source files:
 Running Rubocop
@@ -89,7 +89,7 @@ This option, in addition to executing the linter command, outputs a bunch of det
 #### Changed Only
 
 ```
-$ runlints -d -c
+$ l -d -c
 [DEBUG] CLI init and parse...            (7.138 ms)
 [DEBUG] Lookup changed source files...   (24.889 ms)
 [DEBUG]   `git diff --no-ext-diff --name-only  -- . && git ls-files --others --exclude-standard -- .`
@@ -110,7 +110,7 @@ This runs a git command to determine which files have been updated (relative to 
 You can specify a custom git ref to use instead:
 
 ```
-$ runlints -d -c -r master
+$ l -d -c -r master
 [DEBUG] CLI init and parse...            (6.933 ms)
 [DEBUG] Lookup changed source files...   (162.297 ms)
 [DEBUG]   `git diff --no-ext-diff --name-only master -- . && git ls-files --others --exclude-standard -- .`
@@ -130,7 +130,7 @@ Running SCSS Lint
 #### Dry-Run
 
 ```
-$ runlints --dry-run
+$ l --dry-run
 Running Rubocop
 rubocop .
 
@@ -145,16 +145,26 @@ scss-lint .
 
 This option only outputs the linter command it would have run. It does not execute the linter command.
 
+#### Autocorrect
+
+```
+$ l --dry-run -a
+Running Rubocop
+rubocop -a .
+```
+
+This option runs the optional `autocorrect_cmd` configured on the linters. If linters do not define an autocorrect cmd, they will not be run.
+
 #### Specifically run or don't run individual linters
 
 ```
-$ runlints --rubocop
+$ l --rubocop
 Running Rubocop
 rubocop .
 ```
 
 ```
-$ runlints --no-es-lint
+$ l --no-es-lint
 Running Rubocop
 rubocop .
 
@@ -168,7 +178,7 @@ Each linter gets a CLI option that allows you to toggle it on/off. If no options
 #### List
 
 ```
-$ runlints -l
+$ l -l
 app/file1.rb
 app/file2.js
 app/file3.scss

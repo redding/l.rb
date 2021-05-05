@@ -31,11 +31,13 @@ class LdotRB::Runner
 
       @name1 = Factory.string
       @cmd1 = Factory.string
+      @autocorrect_cmd1 = Factory.string
       @extension1 = ".rb"
       @linters = [
         LdotRB::Linter.new(
           name: @name1,
           cmd: @cmd1,
+          autocorrect_cmd: @autocorrect_cmd1,
           extensions: [@extension1]
         )
       ]
@@ -53,6 +55,11 @@ class LdotRB::Runner
     end
 
     should have_readers :file_paths, :config
+    should have_imeths :execute?, :any_linters?
+    should have_imeths :dry_run?, :list?, :autocorrect?, :debug?
+    should have_imeths :changed_only?, :any_specifically_enabled_linters?
+    should have_imeths :linters, :specifically_enabled_linters, :enabled_linters
+    should have_imeths :specified_source_files, :cmds, :run
 
     should "know its attributes" do
       assert_that(subject.file_paths).equals(@file_paths)
@@ -61,6 +68,7 @@ class LdotRB::Runner
       assert_that(subject.any_linters?).is_true
       assert_that(subject.dry_run?).is_false
       assert_that(subject.list?).is_false
+      assert_that(subject.autocorrect?).is_false
       assert_that(subject.debug?).is_false
       assert_that(subject.changed_only?).is_false
       assert_that(subject.linters).equals(@config.linters)
@@ -76,6 +84,14 @@ class LdotRB::Runner
         subject.linters.reduce({}) { |acc, linter|
           acc[linter.cli_option_name] =
             linter.cmd_str(subject.specified_source_files)
+          acc
+        }
+      )
+
+      assert_that(subject.autocorrect_cmds).equals(
+        subject.linters.reduce({}) { |acc, linter|
+          acc[linter.cli_option_name] =
+            linter.autocorrect_cmd_str(subject.specified_source_files)
           acc
         }
       )
@@ -252,6 +268,27 @@ class LdotRB::Runner
         "[DEBUG] #{changed_files_count} specified source files:\n"\
         "#{changed_files_lines.join("\n")}\n"\
       )
+    end
+  end
+
+  class AutocorrectTests < InitSetupTests
+    desc "and configured in autocorrect mode"
+    setup do
+      Assert.stub(@config, :dry_run){ true }
+      Assert.stub(@config, :autocorrect){ true }
+
+      @runner = unit_class.new(@file_paths, config: @config)
+    end
+
+    should "output detailed debug info" do
+      assert_that(subject.autocorrect?).is_true
+
+      subject.run
+
+      linter_names = subject.enabled_linters.map(&:cli_option_name)
+      linter_names.each do |name|
+        assert_that(@lint_output).includes(subject.autocorrect_cmds[name])
+      end
     end
   end
 end
