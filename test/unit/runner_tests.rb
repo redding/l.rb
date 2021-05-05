@@ -237,7 +237,7 @@ class LdotRB::Runner
         .equals([@changed_source_file])
 
       assert_that(@git_cmd_used).equals(
-        "git diff --no-ext-diff --name-only #{@changed_ref} "\
+        "git diff --no-ext-diff --relative --name-only #{@changed_ref} "\
         "-- #{@file_paths.join(" ")} && "\
         "git ls-files --others --exclude-standard "\
         "-- #{@file_paths.join(" ")}"
