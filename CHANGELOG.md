@@ -1,3 +1,7 @@
+## 0.1.2 / 2021-01-12
+
+* add -a CLI options to run in autocorrect mode #2 9b7b6768ab20597422ebc4c837231ce5b3b52196
+
 ## 0.1.1 / 2021-01-12
 
 * Fix `l.rb` working in sub-directories of the git repo fe75b4eb94783354fc2688647653307273198577
