@@ -18,7 +18,7 @@ class LdotRB::Linter
         name: name1,
         cmd: cmd1,
         autocorrect_cmd: autocorrect_cmd1,
-        extensions: [extension1]
+        extensions: [extension1],
       )
     }
 
@@ -51,10 +51,21 @@ class LdotRB::Linter
           autocorrect_cmd: autocorrect_cmd1,
           extensions: [extension1],
           cli_option_name: cli_option_name1,
-          cli_abbrev: cli_abbrev1
+          cli_abbrev: cli_abbrev1,
         )
       assert_that(linter.cli_option_name).equals(cli_option_name1)
       assert_that(linter.cli_abbrev).equals(cli_abbrev1)
+    end
+
+    should "not complain if unknown kargs are given" do
+      assert_that{
+        unit_class.new(
+          name: name1,
+          cmd: cmd1,
+          extensions: [extension1],
+          other: "value",
+        )
+      }.does_not_raise
     end
 
     should "know if it is enabled and specifically enabled" do

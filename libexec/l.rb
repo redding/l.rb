@@ -162,7 +162,8 @@ module LdotRB
           extensions:,
           autocorrect_cmd: nil,
           cli_option_name: nil,
-          cli_abbrev: nil)
+          cli_abbrev: nil,
+          **)
       @name = name
       @cmd = cmd
       @autocorrect_cmd = autocorrect_cmd
