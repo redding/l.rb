@@ -1,4 +1,8 @@
-## 0.1.2 / 2021-01-12
+## 0.1.3 / 2021-05-06
+
+* allow for backwards-compatible linter configs ce9be92
+
+## 0.1.2 / 2021-05-05
 
 * add -a CLI options to run in autocorrect mode #2 9b7b6768ab20597422ebc4c837231ce5b3b52196
 
