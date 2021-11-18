@@ -415,7 +415,7 @@ module LdotRB
     end
   end
 
-  class CLIRB  # Version 1.1.0, https://github.com/redding/cli.rb
+  class CLIRB  # Version 1.2.0, https://github.com/redding/cli.rb
     Error    = Class.new(RuntimeError);
     HelpExit = Class.new(RuntimeError); VersionExit = Class.new(RuntimeError)
     attr_reader :argv, :args, :opts, :data
@@ -432,7 +432,7 @@ module LdotRB
       end
     end
 
-    def option(*args); @options << Option.new(*args); end
+    def option(*args, **kargs); @options << Option.new(*args, **kargs); end
     def parse!(argv)
       @args = (argv || []).dup.tap do |args_list|
         begin; @parser.parse!(args_list)
@@ -475,27 +475,42 @@ module LdotRB
     linters = config.linters
     @clirb ||= CLIRB.new do
       linters.each do |linter|
-        option linter.cli_option_name, "specifically run or don't run #{linter.name}", {
-          abbrev: linter.cli_abbrev
-        }
+        option(
+          linter.cli_option_name,
+          "specifically run or don't run #{linter.name}",
+          abbrev: linter.cli_abbrev,
+        )
       end
-      option "changed_only", "only run source files with changes", {
-        abbrev: "c"
-      }
-      option "changed_ref", "reference for changes, use with `-c` opt", {
-        abbrev: "r", value: ""
-      }
-      option "autocorrect", "autocorrect any correctable violations", {
-        abbrev: "a"
-      }
-      option "dry_run", "output each linter command to $stdout without executing"
-      option "list", "list source files on $stdout", {
-        abbrev: "l"
-      }
+      option(
+        "changed_only",
+        "only run source files with changes",
+        abbrev: "c",
+      )
+      option(
+        "changed_ref",
+        "reference for changes, use with `-c` opt",
+        abbrev: "r",
+        value: "",
+      )
+      option(
+        "autocorrect",
+        "autocorrect any correctable violations",
+        abbrev: "a",
+      )
+      option(
+        "dry_run",
+        "output each linter command to $stdout without executing",
+      )
+      option(
+        "list",
+        "list source files on $stdout",
+        abbrev: "l",
+      )
       # show specified source files, cli err backtraces, etc
-      option "debug", "run in debug mode", {
-        abbrev: "d"
-      }
+      option("debug",
+        "run in debug mode",
+        abbrev: "d",
+      )
     end
   end
 
