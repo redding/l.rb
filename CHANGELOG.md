@@ -1,3 +1,8 @@
+## 0.1.4 / 2021-11-19
+
+* backport Hash#transform_keys to support Ruby 2.4+ ccd7522
+* update to work with Ruby 3+ de3e1ea
+
 ## 0.1.3 / 2021-05-06
 
 * allow for backwards-compatible linter configs ce9be92

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-L_RELEASE="0.1.3" # also update in install.sh and libexec/l.rb
+L_RELEASE="0.1.4" # also update in install.sh and libexec/l.rb
 
 # check uncommitted changes
 

@@ -7,7 +7,7 @@ require "set"
 require "yaml"
 
 module LdotRB
-  VERSION = "0.1.3"
+  VERSION = "0.1.4"
 
   class Config
     CONFIG_FILE_PATH = "./.l.yml"
