@@ -6,8 +6,10 @@ A lint runner. Run locally configured lint commands via a generic CLI with stand
 
 Open a terminal and run this command ([view source](https://git.io/l.rb--install)):
 
+(change PREFIX as needed; it defaults to `/usr/local`)
+
 ```
-$ curl -L https://git.io/l.rb--install | sh
+$ curl -L https://git.io/l.rb--install | PREFIX=/usr/local sh
 ```
 
 ## Usage
