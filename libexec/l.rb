@@ -320,27 +320,41 @@ module LdotRB
 
       if list?
         puts output_source_files.join("\n")
-      else
-        linters_to_run =
-          if any_specifically_enabled_linters?
-            specifically_enabled_linters
-          else
-            enabled_linters
-          end
-        cmd_str_method = autocorrect? ? :autocorrect_cmd_str : :cmd_str
-
-        linters_to_run.each_with_index do |linter, index|
-          puts "\n\n" if index > 0
-          puts "Running #{linter.name}"
-
-          cmd = linter.public_send(cmd_str_method, specified_source_files)
-          next unless cmd
-
-          debug_puts "  #{cmd}" if debug?
-          puts cmd if dry_run?
-          system(cmd) if execute?
-        end
+        return true
       end
+
+      linters_to_run =
+        if any_specifically_enabled_linters?
+          specifically_enabled_linters
+        else
+          enabled_linters
+        end
+      cmd_str_method = autocorrect? ? :autocorrect_cmd_str : :cmd_str
+      success = true
+
+      linters_to_run.each_with_index do |linter, index|
+        puts "\n\n" if index > 0
+        puts "Running #{linter.name}"
+
+        cmd = linter.public_send(cmd_str_method, specified_source_files)
+        next unless cmd
+
+        debug_puts "  #{cmd}" if debug?
+        puts cmd if dry_run?
+        # Every linter runs even after one fails, so a single command's
+        # failure never hides offenses the later linters would report. The
+        # accumulated result is what the CLI exits on.
+        success = false if execute? && !execute_cmd(cmd)
+      end
+
+      success
+    end
+
+    # The single place a linter subprocess is spawned, named so the result can
+    # be observed. Kernel#system is private, so calling it inline leaves no
+    # seam a test can stub.
+    def execute_cmd(cmd)
+      system(cmd)
     end
 
     private
@@ -532,7 +546,9 @@ module LdotRB
   def self.run
     begin
       bench("ARGV parse and configure"){ apply(ARGV) }
-      Runner.new(self.clirb.args, config: self.config).run
+      # Exit non-zero when any linter reported a problem, so `l` can gate a
+      # commit hook or a CI step instead of only reporting to stdout.
+      exit(1) unless Runner.new(self.clirb.args, config: self.config).run
     rescue CLIRB::HelpExit
       config.puts help_msg
     rescue CLIRB::VersionExit

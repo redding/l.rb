@@ -59,7 +59,7 @@ class LdotRB::Runner
     should have_imeths :dry_run?, :list?, :autocorrect?, :debug?
     should have_imeths :changed_only?, :any_specifically_enabled_linters?
     should have_imeths :linters, :specifically_enabled_linters, :enabled_linters
-    should have_imeths :specified_source_files, :cmds, :run
+    should have_imeths :specified_source_files, :cmds, :run, :execute_cmd
 
     should "know its attributes" do
       assert_that(subject.file_paths).equals(@file_paths)
@@ -189,6 +189,53 @@ class LdotRB::Runner
     end
   end
 
+  class ExecuteResultTests < InitSetupTests
+    desc "and configured to execute the linter cmds"
+    setup do
+      @executed_cmds = []
+      @runner = unit_class.new(@file_paths, config: @config)
+      Assert.stub(@runner, :execute_cmd) do |cmd|
+        @executed_cmds << cmd
+        @execute_result
+      end
+    end
+
+    should "return true when every linter cmd succeeds" do
+      @execute_result = true
+
+      assert_that(subject.run).is_true
+      assert_that(@executed_cmds).is_not_empty
+    end
+
+    should "return false when a linter cmd fails" do
+      @execute_result = false
+
+      assert_that(subject.run).is_false
+    end
+
+    should "run the remaining linter cmds after one fails" do
+      @execute_result = false
+      Assert.stub(@config, :linters) do
+        [
+          LdotRB::Linter.new(
+            name: Factory.string,
+            cmd: Factory.string,
+            extensions: [@extension1]
+          ),
+          @linters.first
+        ]
+      end
+      @runner = unit_class.new(@file_paths, config: @config)
+      Assert.stub(@runner, :execute_cmd) do |cmd|
+        @executed_cmds << cmd
+        false
+      end
+
+      assert_that(subject.run).is_false
+      assert_that(@executed_cmds.size).equals(2)
+    end
+  end
+
   class ListTests < InitSetupTests
     desc "and configured to list"
     setup do
@@ -201,7 +248,7 @@ class LdotRB::Runner
       assert_that(subject.execute?).is_false
       assert_that(subject.list?).is_true
 
-      subject.run
+      assert_that(subject.run).is_true
       assert_that(@lint_output)
         .includes(subject.specified_source_files.join("\n"))
     end
