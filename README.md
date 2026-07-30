@@ -2,14 +2,41 @@
 
 A lint runner. Run locally configured lint commands via a generic CLI with standard options/features.
 
+```
+$ l                     # all configured linters, the config's default paths
+$ l -c                  # only files with uncommitted changes
+$ l -c -a               # ... and autocorrect what can be corrected
+$ l -c -r main          # only files changed against a ref
+$ l -u -c               # only Rubocop, only changed files
+$ l app/models/user.rb  # an explicit file list
+$ l --help
+```
+
+## What It Does...
+
+**Reads a `.l.yml` config:** each linter declares a `cmd`, an optional
+  `autocorrect_cmd`, the file extensions it applies to, and an optional
+  single-letter `cli_abbrev` that becomes its own CLI flag.
+
+**Resolves which files to lint:** from explicit paths, or from git — `-c` for
+  uncommitted changes, `-r REF` against a ref — filtered by each linter's
+  extensions.
+
+**Runs each linter on those files:** every linter runs even if an earlier one
+  fails, and `l` exits non-zero if any of them did.
+
+**Autocorrects on request:** `-a` swaps each linter's `cmd` for its
+  `autocorrect_cmd`. **A linter with no `autocorrect_cmd` is skipped entirely
+  under `-a`**, though it still prints its `Running <name>` header.
+
 ## Install
 
-Open a terminal and run this command ([view source](https://git.io/l.rb--install)):
+Open a terminal and run this command ([view source](https://raw.githubusercontent.com/redding/l.rb/main/install.sh)):
 
 (change PREFIX as needed; it defaults to `/usr/local`)
 
 ```
-$ curl -L https://git.io/l.rb--install | PREFIX=/usr/local sh
+$ curl -L https://raw.githubusercontent.com/redding/l.rb/main/install.sh | PREFIX=/usr/local sh
 ```
 
 ## Usage
@@ -222,17 +249,37 @@ Optional. An String letter used as the abbreviated CLI flag for the linter. Defa
 
 ## Dependencies
 
-[Ruby](https://www.ruby-lang.org/) `~> 2.5`.
+[Ruby](https://www.ruby-lang.org/) `>= 2.5`, developed against the version in `.ruby-version`.
 
 [Git](https://git-scm.com/).
 
 ## Uninstall
 
-Open a terminal and run this command ([view source](http://git.io/l.rb---uninstall)):
+Open a terminal and run this command ([view source](https://raw.githubusercontent.com/redding/l.rb/main/uninstall.sh)):
 
 ```
-$ curl -L http://git.io/l.rb---uninstall | sh
+$ curl -L https://raw.githubusercontent.com/redding/l.rb/main/uninstall.sh | sh
 ```
+
+## Releasing
+
+The version string lives in three places and they must match:
+
+- `libexec/l.rb` — `VERSION`
+- `install.sh` — `L_RELEASE`
+- `release.sh` — `L_RELEASE`
+
+To cut a release:
+
+1. Bump the version in all three files.
+2. Add a `CHANGELOG.md` entry — a `## <version> / <date>` heading, then one
+   line per change ending in its commit SHA.
+3. Commit those changes.
+4. Run `./release.sh`. It refuses to run against a dirty working tree, then
+   tags the release and pushes the commits and the tag.
+
+`install.sh` fetches the tarball for the tag, so the tag must exist before the
+published install command resolves to the new version.
 
 ## Contributing
 
@@ -241,3 +288,15 @@ $ curl -L http://git.io/l.rb---uninstall | sh
 3. Commit your changes (`git commit -am 'Added some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+### Running the tests
+
+```
+$ bundle install
+$ bundle exec assert                            # the whole suite
+$ bundle exec assert test/unit/runner_tests.rb  # one file
+```
+
+Tests run on the Ruby in `.ruby-version`. This repo is configured for
+[t.rb](https://github.com/redding/t.rb) (`.t.yml`), so `t` and `t -c` work too
+if you have it installed.
