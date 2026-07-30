@@ -1,49 +1,87 @@
-# l.rb — notes for agents and non-interactive shells
+# l.rb — notes for agents working on this repo
 
-`l` runs the lint commands a project declares in its `.l.yml`. There is no
-built-in knowledge of any particular linter: the config supplies the command
-strings, and `l` decides which files to hand them.
+Notes for *developing* `l.rb`. For using the tool, see the README.
 
-## Always scope the run
+## The whole program is one file
 
-`l` with no scope lints the config's default paths, which in a large repo
-means every file a linter claims. Pass a scope:
+`libexec/l.rb` is it — around 590 lines, no `lib/`, no gemspec. Install
+symlinks `$PREFIX/bin/l` at that file and runs it directly.
 
-- `l -c` — files with uncommitted changes
-- `l -c -r <ref>` — files changed against a ref
-- `l <file> [<file>...]` — an explicit list
+Two constraints follow:
 
-This matters most for autocorrecting linters and formatters: an unscoped
-`-a` run rewrites the whole tree and produces an unreviewable diff.
+- **Stdlib only at runtime.** The file requires `benchmark`, `set`, and
+  `yaml` and nothing else. `pry` and `assert` in the `Gemfile` are for
+  development; a runtime `require` of a gem would break every install, since
+  there is no bundle around the installed script.
+- **Ruby floor is real.** The file is run by whatever Ruby the user's shell
+  resolves, not a pinned one. `class ::Hash` is reopened near the bottom to
+  backport a method for older interpreters — that is the shape a
+  compatibility fix takes here.
 
-## `-c` reads the working tree, not the branch
+## Layout of that file
 
-`-c` means *uncommitted* changes. Once work is committed it reports nothing,
-so a post-commit `l -c` is a no-op that looks like a pass. Use
-`-c -r <base-branch>` to lint a branch's worth of changes, or name the files.
+| region | role |
+|---|---|
+| `module LdotRB` | entry point — `.run`, `.apply`, `.config`, `.bench`, `.help_msg` |
+| `Config` | parses `./.l.yml`, holds CLI settings and the `Linter` list |
+| `Linter` | one per config entry; builds the command string for a file list |
+| `Runner` | resolves which files to lint, then runs each linter |
+| `GitChangedFiles` | the `-c` / `-r` git integration |
+| `RoundedMillisecondTime` | benchmarking helper |
+| `CLIRB` | **vendored** option parser, copied from redding/cli.rb |
+| `class ::Hash` | backport for older Rubies |
 
-## `-a` only runs linters that declare an `autocorrect_cmd`
+`CLIRB` is a verbatim copy carrying its own version comment. Fix bugs
+upstream in redding/cli.rb and re-copy rather than editing it here, or the
+next copy silently reverts the change.
 
-Each linter in `.l.yml` has a `cmd` and may have an `autocorrect_cmd`. Under
-`-a` the autocorrect command is used — and **a linter with no
-`autocorrect_cmd` is skipped for that run**. It still prints its `Running
-<name>` header, so the output is indistinguishable from a linter that ran
-and found nothing.
+## Requiring the file runs the CLI
 
-If a formatter seems not to be formatting, check whether its `.l.yml` entry
-declares an `autocorrect_cmd` before looking anywhere else.
+The last lines are:
 
-## Exit status reflects the result
+```ruby
+unless ENV["LDOTRB_DISABLE_RUN"]
+  # ... parse ARGV and run
+end
+```
 
-`l` exits non-zero when any linter reported a problem, so it can gate a hook
-or a CI step. Every linter still runs after one fails, so a single failure
-does not suppress what the others would report.
+`test/helper.rb` sets `LDOTRB_DISABLE_RUN` before requiring, which is the only
+reason the suite can load the file without executing a lint run. Anything else
+that requires `libexec/l` must do the same.
 
-Confirm what actually ran with `--dry-run`, which prints each command
-without executing it. A linter that emits no command there did not run.
+## Tests
 
-## Config lookup is per-directory
+```
+$ bundle install
+$ bundle exec assert                            # the whole suite
+$ bundle exec assert test/unit/runner_tests.rb  # one file
+```
 
-The config is `./.l.yml`, resolved from the current directory. Running `l`
-from outside a project — or from a subdirectory whose parent holds the
-config — will not find it.
+The framework is [assert](https://github.com/redding/assert), not RSpec or
+Minitest. `test/helper.rb` is auto-required.
+
+- `test/unit/*_tests.rb` mirrors the classes above one-to-one.
+- `test/support/` holds fixture files (`app/file1.rb`, `app/file2.js`, …) that
+  the file-resolution logic actually globs over. **Adding a file there can
+  change expectations in the config and runner tests** — it is fixture data,
+  not scratch space.
+- Stubbing is `Assert.stub(obj, :meth){ ... }`. It requires the receiver to
+  `respond_to?` the method, so private `Kernel` methods like `system` cannot be
+  stubbed directly — that is why command execution sits behind a named
+  `execute_cmd` method rather than calling `system` inline.
+
+Most tests drive `Runner` with `dry_run` or `list` stubbed true, so no
+subprocess is spawned. If you change execution behavior, add coverage that
+exercises the executing path — the default setup will not reach it.
+
+## Maintenance notes
+
+- The version string lives in three files and must match: `libexec/l.rb`
+  (`VERSION`), `install.sh` (`L_RELEASE`), `release.sh` (`L_RELEASE`). The
+  duplication is deliberate — `install.sh` fetches a release *tag*.
+- `CHANGELOG.md` entries carry the commit SHA of each change.
+- Release steps are in the README under `## Releasing`. Version bumps are
+  committed on `main` and tagged there, not merged through a pull request.
+- This repo has no CI. Run the suite locally before pushing; nothing else will.
+- `.l.yml` here declares `linters:` with nothing under it, so running `l` in
+  this repo lints nothing. `.t.yml` is configured, so `t` works.
