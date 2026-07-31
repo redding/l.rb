@@ -9,6 +9,11 @@ require "yaml"
 module LdotRB
   VERSION = "0.2.0"
 
+  # Raised for anything wrong with the config file: unreadable, unparseable,
+  # or the wrong shape. Reported without a backtrace, since it means the
+  # config file needs fixing, not that `l` has a bug.
+  ConfigError = Class.new(StandardError)
+
   class Config
     CONFIG_FILE_PATH = "./.l.yml"
 
@@ -41,6 +46,7 @@ module LdotRB
 
     attr_reader :stdout, :version
     attr_reader :source_file_paths, :ignored_file_paths, :linter_hashes
+    attr_reader :load_error
 
     settings :changed_only, :changed_ref
     settings :dry_run, :list, :autocorrect, :debug
@@ -52,6 +58,7 @@ module LdotRB
       @source_file_paths = ["./"]
       @ignored_file_paths = []
       @linter_hashes = []
+      @load_error = nil
 
       # cli option settings
       @changed_only = false
@@ -81,10 +88,7 @@ module LdotRB
     end
 
     def linters
-      @linters ||=
-        @linter_hashes.map{ |linter_hash|
-          Linter.new(**linter_hash.transform_keys(&:to_sym))
-        }
+      @linters ||= build_linters(@linter_hashes)
     end
 
     def apply(settings)
@@ -97,11 +101,79 @@ module LdotRB
       end
     end
 
+    def config_file_exists?
+      File.exist?(CONFIG_FILE_PATH)
+    end
+
     def load
-      config = YAML.load(File.read(CONFIG_FILE_PATH))
+      @load_error = nil
+      return unless config_file_exists?
+
+      config = read_config_file
       @source_file_paths  = config["source_file_paths"] || @source_file_paths
       @ignored_file_paths = config["ignored_file_paths"] || @ignored_file_paths
       @linter_hashes      = config["linters"] || @linter_hashes
+      # Build eagerly so a bad entry is caught here rather than later, when
+      # the CLI parser asks for the linter list to build its options.
+      @linters            = build_linters(@linter_hashes)
+      nil
+    rescue ConfigError => exception
+      # Hold the error instead of raising it: `--help` and `--version` should
+      # still work when the config file is broken.
+      @load_error    = exception
+      @linter_hashes = []
+      @linters       = []
+      nil
+    end
+
+    def read_config_file
+      yaml =
+        begin
+          YAML.load(File.read(CONFIG_FILE_PATH))
+        rescue ::Psych::SyntaxError => exception
+          raise ConfigError,
+                "#{CONFIG_FILE_PATH} is not valid YAML: #{exception.message}"
+        rescue ::SystemCallError, ::IOError => exception
+          raise ConfigError,
+                "#{CONFIG_FILE_PATH} could not be read: #{exception.message}"
+        end
+
+      # An empty file parses as `false`; treat it as an empty config.
+      return {} if yaml.nil? || yaml == false
+
+      unless yaml.is_a?(::Hash)
+        raise ConfigError,
+              "#{CONFIG_FILE_PATH} must contain a YAML hash, "\
+              "got #{yaml.class}."
+      end
+
+      yaml
+    end
+
+    def build_linters(linter_hashes)
+      unless linter_hashes.is_a?(::Array)
+        raise ConfigError,
+              "`linters:` in #{CONFIG_FILE_PATH} must be a list, "\
+              "got #{linter_hashes.class}."
+      end
+
+      linter_hashes.map { |linter_hash| build_linter(linter_hash) }
+    end
+
+    def build_linter(linter_hash)
+      unless linter_hash.is_a?(::Hash)
+        raise ConfigError,
+              "each `linters:` entry in #{CONFIG_FILE_PATH} must be a hash, "\
+              "got #{linter_hash.class}."
+      end
+
+      begin
+        Linter.new(**linter_hash.transform_keys(&:to_sym))
+      rescue ::ArgumentError => exception
+        raise ConfigError,
+              "a `linters:` entry in #{CONFIG_FILE_PATH} is invalid "\
+              "(#{exception.message})."
+      end
     end
 
     def debug_msg(msg)
@@ -497,7 +569,7 @@ module LdotRB
       end
       option(
         "changed_only",
-        "only run source files with changes",
+        "only lint source files with changes",
         abbrev: "c",
       )
       option(
@@ -513,7 +585,7 @@ module LdotRB
       )
       option(
         "dry_run",
-        "output each linter command to $stdout without executing",
+        "output each linter command without executing",
       )
       option(
         "list",
@@ -545,7 +617,21 @@ module LdotRB
 
   def self.run
     begin
+      # `--help` and `--version` are handled while parsing, before anything
+      # here needs the config file, so they work in any directory.
       bench("ARGV parse and configure"){ apply(ARGV) }
+
+      unless config.config_file_exists?
+        config.puts missing_config_msg
+        exit(1)
+      end
+
+      if (load_error = config.load_error)
+        config.puts load_error.message
+        config.puts load_error.backtrace.join("\n") if config.debug
+        exit(1)
+      end
+
       # Exit non-zero when any linter reported a problem, so `l` can gate a
       # commit hook or a CI step instead of only reporting to stdout.
       exit(1) unless Runner.new(self.clirb.args, config: self.config).run
@@ -565,10 +651,18 @@ module LdotRB
     exit(0)
   end
 
+  def self.missing_config_msg
+    "No #{Config::CONFIG_FILE_PATH} found in #{Dir.pwd}.\n\n"\
+    "Add one to configure which linters to run: "\
+    "https://github.com/redding/l.rb"
+  end
+
   def self.help_msg
     "Usage: l [options] [FILES]\n\n"\
     "Options:"\
-    "#{clirb}"
+    "#{clirb}\n"\
+    "Config: #{Config::CONFIG_FILE_PATH} (linters, source and ignored paths)\n"\
+    "Exits non-zero when a linter reports a problem."
   end
 end
 

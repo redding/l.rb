@@ -25,6 +25,8 @@ class LdotRB::Config
 
     should have_readers :stdout, :version
     should have_readers :source_file_paths, :ignored_file_paths, :linter_hashes
+    should have_readers :load_error
+    should have_imeths  :config_file_exists?, :load, :linters
     should have_imeths  :changed_only, :changed_ref
     should have_imeths :dry_run, :list, :autocorrect, :debug
     should have_imeths  :apply
@@ -70,6 +72,114 @@ class LdotRB::Config
       assert_that(subject.list).equals(settings[:list])
       assert_that(subject.autocorrect).equals(settings[:autocorrect])
       assert_that(subject.debug).equals(settings[:debug])
+    end
+
+    should "load linter configs from a YAML file" do
+      Assert.stub(YAML, :load) {
+        {
+          "linters" => [
+            {
+              "name"       => "Linter 1",
+              "cmd"        => "CMD 1",
+              "extensions" => [".rb"],
+            },
+          ],
+        }
+      }
+
+      subject.load
+      assert_that(subject.load_error).is_nil
+      assert_that(subject.linters.size).equals(1)
+      assert_that(subject.linters.first).is_instance_of(LdotRB::Linter)
+      assert_that(subject.linters.first.name).equals("Linter 1")
+    end
+
+    should "know whether its config file exists" do
+      # the repo root has a `.l.yml`; the test support dir does not
+      assert_that(subject.config_file_exists?).is_true
+
+      Dir.chdir(TEST_SUPPORT_PATH) do
+        assert_that(subject.config_file_exists?).is_false
+      end
+    end
+
+    should "load no linters and no error when there is no config file" do
+      Assert.stub(subject, :config_file_exists?){ false }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_nil
+    end
+
+    should "load no linters and no error from an empty config file" do
+      # an empty file parses as `false`
+      Assert.stub(YAML, :load){ false }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_nil
+    end
+
+    should "hold an error for a config file that is not valid YAML" do
+      Assert.stub(YAML, :load) {
+        raise ::Psych::SyntaxError.new("f", 1, 1, 0, "problem", "context")
+      }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_instance_of(LdotRB::ConfigError)
+      assert_that(subject.load_error.message).includes("is not valid YAML")
+    end
+
+    should "hold an error for a config file that is not a hash" do
+      Assert.stub(YAML, :load){ Factory.string }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_instance_of(LdotRB::ConfigError)
+      assert_that(subject.load_error.message).includes("must contain a YAML hash")
+    end
+
+    should "hold an error when `linters:` is not a list" do
+      Assert.stub(YAML, :load){ { "linters" => Factory.string } }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_instance_of(LdotRB::ConfigError)
+      assert_that(subject.load_error.message).includes("must be a list")
+    end
+
+    should "hold an error for a linter entry that is not a hash" do
+      Assert.stub(YAML, :load){ { "linters" => [Factory.string] } }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_instance_of(LdotRB::ConfigError)
+      assert_that(subject.load_error.message).includes("must be a hash")
+    end
+
+    should "hold an error for a linter missing required settings" do
+      Assert.stub(YAML, :load){ { "linters" => [{ "name" => "Linter 1" }] } }
+
+      subject.load
+      assert_that(subject.linters).is_empty
+      assert_that(subject.load_error).is_instance_of(LdotRB::ConfigError)
+      assert_that(subject.load_error.message).includes("cmd")
+    end
+
+    should "clear a previous load error on a successful load" do
+      results = [
+        Factory.string,
+        { "linters" => [] },
+      ]
+      Assert.stub(YAML, :load){ results.shift }
+
+      subject.load
+      assert_that(subject.load_error.nil?).is_false
+
+      subject.load
+      assert_that(subject.load_error).is_nil
+      assert_that(subject.linters).is_empty
     end
 
     should "know how to build debug messages" do
