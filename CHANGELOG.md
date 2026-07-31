@@ -1,3 +1,11 @@
+## 0.2.0 / 2026-07-31
+
+* update README to suggest using a PREFIX install location 85eec43
+* exit non-zero when a linter reports a problem #4 6b567c1
+* run on Ruby 3.3.9 b14bed7
+* add AGENTS.md and refresh stale README content #5 c643d03
+* reorient agent notes toward developing the tool 25463bf
+
 ## 0.1.4 / 2021-11-19
 
 * backport Hash#transform_keys to support Ruby 2.4+ ccd7522
