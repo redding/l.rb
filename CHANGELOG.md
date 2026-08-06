@@ -1,3 +1,7 @@
+## 0.2.1 / 2026-08-05
+
+* keep `--help` and `--version` working without a config file #6 9fabefc
+
 ## 0.2.0 / 2026-07-31
 
 * update README to suggest using a PREFIX install location 85eec43
